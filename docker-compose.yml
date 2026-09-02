@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    environment:
+      - DB_PATH=/app/data/dashboard.db
+      - GIN_MODE=release
+      - TZ=Asia/Shanghai
+      - USE_REAL_DATA=false
+    restart: unless-stopped

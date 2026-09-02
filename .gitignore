@@ -1,0 +1,26 @@
+# Binaries
+bin/
+*.exe
+/server
+/tmp/
+
+# SQLite database files
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Node modules
+node_modules/
+
+# 前端构建产物（Docker/CI 会重新构建）
+web/dist/
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

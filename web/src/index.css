@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #181b24;
+  --bg-tertiary: #1f2330;
+  --bg-hover: #252937;
+  --border-color: #2a2e3d;
+  --fg-primary: #e2e8f0;
+  --fg-secondary: #94a3b8;
+  --fg-muted: #64748b;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply bg-bg-primary text-fg-primary font-sans antialiased;
+    font-feature-settings: 'kern';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 滚动条样式 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-bg-tertiary rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-bg-hover;
+  }
+}
+
+@layer components {
+  /* 通用卡片样式 */
+  .card {
+    @apply bg-bg-secondary border border-border rounded-card p-3;
+  }
+
+  /* 页面标题 */
+  .page-title {
+    @apply text-lg font-semibold text-fg-primary mb-3;
+  }
+
+  /* 涨跌色 */
+  .text-up {
+    @apply text-stock-up;
+  }
+
+  .text-down {
+    @apply text-stock-down;
+  }
+
+  .text-flat {
+    @apply text-stock-flat;
+  }
+}
+
+/* RSS 文章正文渲染样式 */
+.article-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+.article-content p {
+  margin: 8px 0;
+}
+.article-content a {
+  color: #6e4bd8;
+  text-decoration: underline;
+}
+.article-content a:hover {
+  color: #9d84f0;
+}
+.article-content h1, .article-content h2, .article-content h3 {
+  color: #e8eaf0;
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+.article-content blockquote {
+  border-left: 3px solid #6e4bd8;
+  padding-left: 12px;
+  margin: 12px 0;
+  color: #b3b7c2;
+}
+.article-content pre {
+  background: #1b1d24;
+  border: 1px solid #2a2e3d;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+.article-content code {
+  background: #1b1d24;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.article-content ul, .article-content ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+.article-content li {
+  margin: 4px 0;
+}
+.article-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+.article-content th, .article-content td {
+  border: 1px solid #2a2e3d;
+  padding: 8px;
+}
+.article-content iframe {
+  max-width: 100%;
+  border-radius: 8px;
+}
