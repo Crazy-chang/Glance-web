@@ -36,7 +36,6 @@ import {
 import dayjs from 'dayjs'
 import { marketRecord } from '@/api/endpoints'
 import type { MarketRecord, MarketRecordPayload } from '@/types'
-import MarketBanner from '@/components/MarketBanner'
 
 /* ============================================================
  *  常量 / 工具函数
@@ -122,7 +121,7 @@ function SentimentChartCard({ records }: { records: MarketRecord[] }) {
       title={
         <Space>
           <FireOutlined style={{ color: '#f59e0b' }} />
-          <span>情绪温度计</span>
+          <span>市场情绪热度</span>
         </Space>
       }
       extra={
@@ -246,41 +245,33 @@ function ReviewPanel({
 
   return (
     <>
-    {/* <Card style={{ height: '100%' }}> */}
-      {latest ? (
-        <>
-          <div style={{ marginBottom: 12 }}>
-            <div style={labelStyle}>当日复盘</div>
-            <Input.TextArea
-              rows={4}
-              value={reviewDraft}
-              onChange={(e) => setReviewDraft(e.target.value)}
-              onBlur={() => {
-                if (reviewDraft !== (latest.review ?? '')) onSave('review', reviewDraft)
-              }}
-              placeholder="输入当日复盘..."
-            />
-          </div>
-          <div>
-            <div style={labelStyle}>第二天操作</div>
-            <Input.TextArea
-              rows={4}
-              value={planDraft}
-              onChange={(e) => setPlanDraft(e.target.value)}
-              onBlur={() => {
-                if (planDraft !== (latest.tomorrowPlan ?? '')) onSave('tomorrowPlan', planDraft)
-              }}
-              placeholder="输入第二天操作计划..."
-            />
-          </div>
-          <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-            {latest.date} 记录
-          </div>
-        </>
-      ) : (
-        <Empty description="暂无记录" />
-      )}
-    {/* </Card> */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={labelStyle}>当日复盘</div>
+        <Input.TextArea
+          rows={4}
+          value={reviewDraft}
+          onChange={(e) => setReviewDraft(e.target.value)}
+          onBlur={() => {
+            if (reviewDraft !== (latest?.review ?? '')) onSave('review', reviewDraft)
+          }}
+          placeholder="输入当日复盘..."
+        />
+      </div>
+      <div>
+        <div style={labelStyle}>第二天操作</div>
+        <Input.TextArea
+          rows={4}
+          value={planDraft}
+          onChange={(e) => setPlanDraft(e.target.value)}
+          onBlur={() => {
+            if (planDraft !== (latest?.tomorrowPlan ?? '')) onSave('tomorrowPlan', planDraft)
+          }}
+          placeholder="输入第二天操作计划..."
+        />
+      </div>
+      <div hidden={!latest?.date} style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
+        {latest?.date} 记录
+      </div>
     </>
   )
 }
@@ -789,9 +780,6 @@ export default function MarketOverview() {
   return (
     <div>
       {contextHolder}
-
-      {/* ============ 0. 顶部悬浮提醒 ============ */}
-      <MarketBanner />
 
       {/* ============ 1. 温度计区域 ============ */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
