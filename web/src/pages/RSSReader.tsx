@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { message } from 'antd'
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels'
 import {
   Rss, ExternalLink, Plus, RefreshCw, ChevronLeft,
@@ -10,7 +11,7 @@ import {
 import { rss as rssApi, system as systemApi } from '@/api/endpoints'
 import type { Feed, Article, SystemSettings } from '@/types'
 
-type ReadFilter = 'unread' | 'read' | 'all'
+type ReadFilter = 'unread' | 'today' | 'read' | 'all'
 type MobileView = 'feeds' | 'articles' | 'reader'
 
 /* -------------------- useIsMobile -------------------- */
@@ -177,6 +178,7 @@ function FeedMenuItems({
   onSetMax,
   onToggleActive,
   onDelete,
+  onRefresh,
   onClose,
   touch,
 }: {
@@ -188,6 +190,8 @@ function FeedMenuItems({
   onSetMax: () => void
   onToggleActive: () => void
   onDelete: () => void
+  /** 立即刷新该订阅源（不影响定时器节奏） */
+  onRefresh: () => void
   onClose: () => void
   /** 触屏模式：加大行高，保证点击区域足够大 */
   touch: boolean
@@ -227,6 +231,13 @@ function FeedMenuItems({
         文章上限
       </button>
       <button
+        onClick={() => { onRefresh(); onClose() }}
+        className={itemClass}
+      >
+        <RefreshCw className="h-3.5 w-3.5" />
+        刷新此订阅
+      </button>
+      <button
         onClick={() => { onToggleActive(); onClose() }}
         className={itemClass}
       >
@@ -250,7 +261,7 @@ function FeedMenuItems({
 
 /* -------------------- 订阅源操作菜单：桌面跟随坐标浮层，移动端底部操作面板 -------------------- */
 function ContextMenu({
-  x, y, feedName, isActive, mobile, onTogglePin, onRename, onCopyLink, onSetMax, onToggleActive, onDelete, onClose,
+  x, y, feedName, isActive, mobile, onTogglePin, onRename, onCopyLink, onSetMax, onToggleActive, onDelete, onRefresh, onClose,
 }: {
   x: number; y: number; feedName: string
   isActive: boolean
@@ -261,6 +272,7 @@ function ContextMenu({
   onSetMax: () => void
   onToggleActive: () => void
   onDelete: () => void
+  onRefresh: () => void
   onClose: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -290,6 +302,7 @@ function ContextMenu({
       onSetMax={onSetMax}
       onToggleActive={onToggleActive}
       onDelete={onDelete}
+      onRefresh={onRefresh}
       onClose={onClose}
       touch={mobile}
     />
@@ -345,6 +358,7 @@ function FeedList({
   onSetMaxFeed,
   onToggleActiveFeed,
   onRefreshAll,
+  onRefreshFeed,
   onOpenSettings,
   refreshing,
   searchQuery,
@@ -363,6 +377,8 @@ function FeedList({
   onSetMaxFeed: (id: number, max: number) => void
   onToggleActiveFeed: (id: number) => void
   onRefreshAll: () => void
+  /** 立即刷新单个订阅源（不影响定时器节奏） */
+  onRefreshFeed: (id: number) => void
   onOpenSettings: () => void
   refreshing: boolean
   searchQuery: string
@@ -496,11 +512,11 @@ function FeedList({
                   <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
                 )}
               </span>
-              {/* 未读数：纯数字，无背景块，hover 时淡出给 ⋯ 让位 */}
+              {/* 未读数：纯数字，无背景块；移动端右侧 mr-6 给常驻的 ⋯ 按钮让位，桌面 hover 时淡出 */}
               <span
                 className={[
                   'ml-auto shrink-0 pl-2 text-xs tabular-nums transition-opacity',
-                  isMobile ? 'text-stock-up' : 'text-stock-up group-hover:opacity-0',
+                  isMobile ? 'mr-6 text-stock-up' : 'text-stock-up group-hover:opacity-0',
                 ].join(' ')}
               >
                 {(feed.unreadCount || 0) > 0 ? feed.unreadCount : ''}
@@ -551,6 +567,7 @@ function FeedList({
           onSetMax={() => setMaxFeed(ctxMenu.feed)}
           onToggleActive={() => onToggleActiveFeed(ctxMenu.feed.id)}
           onDelete={() => onDeleteFeed(ctxMenu.feed.id)}
+          onRefresh={() => onRefreshFeed(ctxMenu.feed.id)}
           onClose={() => setCtxMenu(null)}
         />
       )}
@@ -711,13 +728,14 @@ function ArticleList({
   onReadFilterChange: (filter: ReadFilter) => void
   onBack?: () => void
   showBack?: boolean
-  counts: { unread: number; read: number; all: number }
+  counts: { unread: number; today: number; read: number; all: number }
 }) {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const sortedArticles = sortOrder === 'desc' ? articles : [...articles].reverse()
 
   const tabs: { key: ReadFilter; label: string; count: number }[] = [
     { key: 'unread', label: '未读', count: counts.unread },
+    { key: 'today', label: '今日', count: counts.today },
     { key: 'read', label: '已读', count: counts.read },
     { key: 'all', label: '全部', count: counts.all },
   ]
@@ -761,7 +779,13 @@ function ArticleList({
       <div className="flex-1 overflow-y-auto">
         {sortedArticles.length === 0 && (
           <div className="p-8 text-center text-sm text-fg-muted">
-            {readFilter === 'unread' ? '没有未读文章' : readFilter === 'read' ? '没有已读文章' : '暂无文章'}
+            {readFilter === 'unread'
+              ? '没有未读文章'
+              : readFilter === 'today'
+                ? '今日暂无文章'
+                : readFilter === 'read'
+                  ? '没有已读文章'
+                  : '暂无文章'}
           </div>
         )}
 
@@ -996,6 +1020,18 @@ export default function RSSReader() {
     },
   })
 
+  // 立即刷新单个订阅源（独立 HTTP 请求，不影响后端定时调度器的节奏）
+  const refreshFeedMutation = useMutation({
+    mutationFn: (id: number) => rssApi.refreshFeed(id),
+    onSuccess: (data) => {
+      message.success(`「${data.feedName}」刷新完成，新增 ${data.newCount} 篇`)
+      queryClient.invalidateQueries({ queryKey: ['rssArticles'] })
+      queryClient.invalidateQueries({ queryKey: ['rssFeeds'] })
+      queryClient.invalidateQueries({ queryKey: ['rssUnreadCounts'] })
+    },
+    onError: () => message.error('刷新失败，请稍后重试'),
+  })
+
   // 删除订阅
   const deleteFeedMutation = useMutation({
     mutationFn: (id: number) => rssApi.deleteFeed(id),
@@ -1075,8 +1111,11 @@ export default function RSSReader() {
 
   const handleSelectFeed = (id: number | null) => {
     setSelectedFeedId(id)
-    // 选中 feed 时清除搜索
-    if (searchInput) setSearchInput('')
+    // 选中 feed 时立即清除搜索（debouncedQuery 也要同步清，否则要等 300ms 防抖）
+    if (searchInput || debouncedQuery) {
+      setSearchInput('')
+      setDebouncedQuery('')
+    }
     if (isMobile) setMobileView('articles')
   }
 
@@ -1108,6 +1147,7 @@ export default function RSSReader() {
   // 文章计数（来自后端，不受 readFilter 影响）
   const articleCounts = {
     unread: articlesData?.unreadCount ?? 0,
+    today: articlesData?.todayCount ?? 0,
     read: articlesData?.readCount ?? 0,
     all: articlesData?.totalCount ?? 0,
   }
@@ -1147,6 +1187,7 @@ export default function RSSReader() {
                   if (feed) toggleActiveMutation.mutate(feed)
                 }}
                 onRefreshAll={() => refreshAllMutation.mutate()}
+                onRefreshFeed={(id) => refreshFeedMutation.mutate(id)}
                 onOpenSettings={() => setShowSettingsModal(true)}
                 refreshing={refreshAllMutation.isPending}
                 searchQuery={searchInput}
@@ -1200,7 +1241,7 @@ export default function RSSReader() {
                 selectedFeedId={selectedFeedId}
                 isMobile={isMobile}
                 lastUpdate={feedsUpdatedAt}
-                onSelect={setSelectedFeedId}
+                onSelect={handleSelectFeed}
                 onAddClick={() => setShowAddModal(true)}
                 onDeleteFeed={(id) => deleteFeedMutation.mutate(id)}
                 onTogglePin={(id) => pinFeedMutation.mutate(id)}
@@ -1211,6 +1252,7 @@ export default function RSSReader() {
                   if (feed) toggleActiveMutation.mutate(feed)
                 }}
                 onRefreshAll={() => refreshAllMutation.mutate()}
+                onRefreshFeed={(id) => refreshFeedMutation.mutate(id)}
                 onOpenSettings={() => setShowSettingsModal(true)}
                 refreshing={refreshAllMutation.isPending}
                 searchQuery={searchInput}

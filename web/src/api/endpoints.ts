@@ -94,9 +94,9 @@ export const rss = {
   /** 获取文章列表（不含正文，点击时单独拉详情） */
   getArticles(
     feedId?: number,
-    readFilter?: 'unread' | 'read' | 'all',
+    readFilter?: 'unread' | 'read' | 'today' | 'all',
     q?: string,
-  ): Promise<{ list: Article[]; unreadCount: number; readCount: number; totalCount: number }> {
+  ): Promise<{ list: Article[]; unreadCount: number; readCount: number; totalCount: number; todayCount: number }> {
     return client
       .get('/rss/articles', { params: { feedId, readFilter, q } })
       .then((r) => r.data)

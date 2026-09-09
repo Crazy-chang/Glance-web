@@ -25,8 +25,8 @@ func cleanURL(s string) string {
 
 // RSSHandler 处理 RSS 订阅源和文章 HTTP 请求.
 type RSSHandler struct {
-	db      *gorm.DB
-	rssSvc  *services.RSSService
+	db     *gorm.DB
+	rssSvc *services.RSSService
 }
 
 // NewRSSHandler 创建一个新的处理 RSS 订阅源和文章 HTTP 请求的处理程序.
@@ -205,9 +205,9 @@ func (h *RSSHandler) RefreshFeed(c *gin.Context) {
 	}
 
 	success(c, gin.H{
-		"feedId":     feed.ID,
-		"newCount":   count,
-		"feedName":   feed.Name,
+		"feedId":   feed.ID,
+		"newCount": count,
+		"feedName": feed.Name,
 	})
 }
 
@@ -292,17 +292,21 @@ func (h *RSSHandler) GetArticles(c *gin.Context) {
 	if q := c.Query("q"); q != "" {
 		like := "%" + q + "%"
 		baseQuery = baseQuery.Where("title LIKE ? OR content LIKE ?", like, like)
-		} else if feedID := c.Query("feedId"); feedID != "" {
+	} else if feedID := c.Query("feedId"); feedID != "" {
 		// 非搜索模式才按 feed 筛选
 		baseQuery = baseQuery.Where("feed_id = ?", feedID)
 	}
 
-	// 统计未读/已读/总数
-	var unreadCount, readCount, totalCount int64
+	// 今日零点（本地时区），用于「今日」筛选与计数
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	// 统计未读/已读/总数/今日数
+	var unreadCount, readCount, totalCount, todayCount int64
 	baseQuery.Session(&gorm.Session{}).Count(&totalCount)
 	baseQuery.Session(&gorm.Session{}).Where("is_read = ?", false).Count(&unreadCount)
 	baseQuery.Session(&gorm.Session{}).Where("is_read = ?", true).Count(&readCount)
-
+	baseQuery.Session(&gorm.Session{}).Where("published_at >= ?", startOfDay).Count(&todayCount)
 
 	// 应用 readFilter 过滤
 	query := baseQuery
@@ -312,6 +316,8 @@ func (h *RSSHandler) GetArticles(c *gin.Context) {
 		query = query.Where("is_read = ?", false)
 	case "read":
 		query = query.Where("is_read = ?", true)
+	case "today":
+		query = query.Where("published_at >= ?", startOfDay)
 	}
 
 	// 不再 Limit，返回全部；用 Select 排除 content 字段
@@ -329,10 +335,9 @@ func (h *RSSHandler) GetArticles(c *gin.Context) {
 		"unreadCount": unreadCount,
 		"readCount":   readCount,
 		"totalCount":  totalCount,
+		"todayCount":  todayCount,
 	})
 }
-
-
 
 // GetArticle 获取单篇文章详情（含完整正文）.
 // GET /api/rss/articles/:id
@@ -349,7 +354,7 @@ func (h *RSSHandler) GetArticle(c *gin.Context) {
 		failed(c, http.StatusNotFound, "article not found")
 		return
 	}
-	
+
 	success(c, article)
 }
 
@@ -396,7 +401,7 @@ func (h *RSSHandler) ToggleArticleStar(c *gin.Context) {
 
 // TogglePinFeed 置顶订阅源.
 // PUT /api/rss/feeds/:id/pin
-func (h *RSSHandler) TogglePinFeed(c *gin.Context) { 
+func (h *RSSHandler) TogglePinFeed(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 		failed(c, http.StatusBadRequest, "id is required")
