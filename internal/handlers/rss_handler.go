@@ -320,11 +320,17 @@ func (h *RSSHandler) GetArticles(c *gin.Context) {
 		query = query.Where("published_at >= ?", startOfDay)
 	}
 
+	// 默认按发布时间倒序；只在"已读"列表里改用阅读时间倒序
+	orderClause := "published_at DESC"
+	if readFilter == "read" {
+		orderClause = "read_at DESC"
+	}
+
 	// 不再 Limit，返回全部；用 Select 排除 content 字段
 	var articles []models.RSSArticle
 	if err := query.
 		Select("id, feed_id, title, link, description, published_at, is_read, is_starred, created_at").
-		Order("published_at DESC").
+		Order(orderClause).
 		Find(&articles).Error; err != nil {
 		failed(c, http.StatusInternalServerError, "failed to fetch articles")
 		return
@@ -367,7 +373,10 @@ func (h *RSSHandler) MarkArticleRead(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.Model(&models.RSSArticle{}).Where("id = ?", id).Update("is_read", true).Error; err != nil {
+	if err := h.db.Model(&models.RSSArticle{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"is_read": true,
+		"read_at": gorm.Expr("COALESCE(read_at, ?)", time.Now()),
+	}).Error; err != nil {
 		failed(c, http.StatusInternalServerError, "failed to mark article as read")
 		return
 	}
