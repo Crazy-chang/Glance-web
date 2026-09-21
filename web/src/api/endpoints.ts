@@ -3,8 +3,10 @@ import type {
   Feed,
   Article,
   FeedPayload,
+  Habit,
   MarketRecord,
   MarketRecordPayload,
+  Note,
   SystemSettings,
   WebLink,
 } from '@/types'
@@ -146,6 +148,52 @@ export const webLinks = {
   /** 删除导航链接 */
   deleteLink(id: number): Promise<{ id: string }> {
     return client.delete('/web-links/' + id).then((r) => r.data)
+  },
+}
+
+/* -------------------- 便签 -------------------- */
+export const notes = {
+  /** 获取便签列表（后端已按置顶优先、更新时间倒序排好） */
+  getAll(): Promise<Note[]> {
+    return client.get('/notes').then((r) => r.data)
+  },
+
+  /** 新建便签 */
+  create(content: string): Promise<Note> {
+    return client.post('/notes', { content }).then((r) => r.data)
+  },
+
+  /** 更新便签（内容或置顶状态，按需传字段） */
+  update(id: number, payload: { content?: string; pinned?: boolean }): Promise<Note> {
+    return client.put('/notes/' + id, payload).then((r) => r.data)
+  },
+
+  /** 删除便签 */
+  remove(id: number): Promise<void> {
+    return client.delete('/notes/' + id).then((r) => r.data)
+  },
+}
+
+/* -------------------- 习惯打卡 -------------------- */
+export const habits = {
+  /** 获取全部习惯（含各自打卡记录 checks，后端 Preload 一次性带出） */
+  getAll(): Promise<Habit[]> {
+    return client.get('/habits').then((r) => r.data)
+  },
+
+  /** 新建习惯 */
+  create(payload: { name: string; color: string }): Promise<Habit> {
+    return client.post('/habits', payload).then((r) => r.data)
+  },
+
+  /** 删除习惯（级联删除其全部打卡记录） */
+  remove(id: number): Promise<void> {
+    return client.delete('/habits/' + id).then((r) => r.data)
+  },
+
+  /** 切换某天打卡状态：已打卡→取消，未打卡→新增。返回切换后的最新状态 */
+  toggle(id: number, date: string): Promise<{ checked: boolean }> {
+    return client.put(`/habits/${id}/toggle`, { date }).then((r) => r.data)
   },
 }
 

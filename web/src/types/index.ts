@@ -135,3 +135,37 @@ export interface WebLink {
   updatedAt?: string
 }
 
+/* -------------------- 速记便签 -------------------- */
+/** 速记便签 */
+export interface Note {
+  id: number
+  /** 内容 */
+  content: string
+  /** 是否置顶 */
+  pinned: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+/* -------------------- 习惯打卡 -------------------- */
+/** 习惯（含打卡记录，由后端 Preload 返回） */
+export interface Habit {
+  id: number
+  /** 名称 */
+  name: string
+  /** 颜色（hex） */
+  color: string
+  createdAt: string
+  updatedAt: string
+  /** 该习惯的全部打卡记录；新建时为空数组 */
+  checks: HabitCheck[]
+}
+
+/** 习惯打卡记录 */
+export interface HabitCheck {
+  id: number
+  habitId: number
+  /** 打卡日期 YYYY-MM-DD */
+  date: string
+}
+

@@ -171,8 +171,8 @@ export default function WebLinks() {
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexShrink: 0 }}>
         <h1 className="page-title" style={{ marginBottom: 0 }}>网站快速导航</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button
@@ -199,7 +199,16 @@ export default function WebLinks() {
         </div>
       </div>
 
-      <Card styles={{ body: { padding: 16 } }}>
+      <Card
+        styles={{ body: { padding: 16, overflowY: 'auto', flex: 1, minHeight: 0 } }}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         {isLoading ? (
           <div style={{ textAlign: 'center', padding: 48 }}>
             <Spin tip="加载中..." />

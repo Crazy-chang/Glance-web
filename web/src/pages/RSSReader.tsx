@@ -329,11 +329,11 @@ function ContextMenu({
     )
   }
 
-  // 桌面端：跟随右键位置 / ⋯ 图标位置的浮层
+  // 桌面端：跟随右键位置 / ⋯ 图标位置的浮层 -- 若是再加按钮，这个270需要根据按钮数量手动调整
   const style: React.CSSProperties = {
     position: 'fixed',
-    left: Math.min(x, window.innerWidth - 180),
-    top: Math.min(y, window.innerHeight - 180),
+    left: Math.min(x, window.innerWidth - 270),
+    top: Math.min(y, window.innerHeight - 270),
     zIndex: 50,
   }
 
@@ -770,8 +770,7 @@ function ArticleList({
             className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-xs text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg-secondary"
             title={sortOrder === 'desc' ? '当前：最新优先，点击切换为最旧优先' : '当前：最旧优先，点击切换为最新优先'}
           >
-            {sortOrder === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
-            {sortOrder === 'desc' ? '降序' : '升序'}
+            {sortOrder === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
           </button>
         </div>
       </div>
@@ -830,7 +829,15 @@ function ArticleList({
 }
 
 /* -------------------- 第三栏：阅读面板 -------------------- */
-function ReadingPane({ article, onBack }: { article: Article | null; onBack?: () => void }) {
+function ReadingPane({
+  article,
+  onBack,
+  onNext,
+}: {
+  article: Article | null
+  onBack?: () => void
+  onNext?: () => void
+}) {
   // 点击文章时调详情接口拿正文
   const { data: articleDetail, isLoading: contentLoading } = useQuery({
     queryKey: ['rssArticle', article?.id],
@@ -838,6 +845,12 @@ function ReadingPane({ article, onBack }: { article: Article | null; onBack?: ()
     enabled: !!article,
     staleTime: Infinity, // 文章内容不会变，不重复请求
   })
+
+  // 切换文章时正文滚回顶部
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [article?.id])
 
   if (!article) {
     return (
@@ -873,7 +886,7 @@ function ReadingPane({ article, onBack }: { article: Article | null; onBack?: ()
         <h1 className="text-lg font-bold text-fg-primary sm:text-xl">{article.title}</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
         <div className="prose prose-invert max-w-none">
           {contentLoading && !content ? (
             <div className="flex items-center justify-center py-12">
@@ -891,6 +904,18 @@ function ReadingPane({ article, onBack }: { article: Article | null; onBack?: ()
           )}
         </div>
       </div>
+
+      {onNext && (
+        <div className="flex-shrink-0 border-t border-border px-4 py-2 sm:px-6">
+          <button
+            onClick={onNext}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-bg-tertiary px-3 py-2 text-xs text-fg-secondary transition-colors hover:bg-bg-hover hover:text-fg-primary"
+          >
+            下一篇
+            <ChevronLeft className="h-3.5 w-3.5 rotate-180" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1144,6 +1169,19 @@ export default function RSSReader() {
     }
   })
 
+  // 跳转到下一篇，列表无限循环（保持当前排序与筛选）。
+  // 注意：未读筛选下当前文章标记已读后会从列表消失（findIndex 返回 -1），
+  // 此时它原来的下一篇已占据列表前部，直接取第一篇即可。
+  const handleNextArticle = useCallback(() => {
+    if (articleList.length === 0) return
+    const idx = selectedArticle
+      ? articleList.findIndex((a) => a.id === selectedArticle.id)
+      : -1
+    const next = idx < 0 ? articleList[0] : articleList[(idx + 1) % articleList.length]
+    setSelectedArticle(next)
+    if (!next.read) markReadMutation.mutate(next.id)
+  }, [selectedArticle, articleList])
+
   // 文章计数（来自后端，不受 readFilter 影响）
   const articleCounts = {
     unread: articlesData?.unreadCount ?? 0,
@@ -1156,7 +1194,8 @@ export default function RSSReader() {
   if (isMobile) {
     return (
       <>
-        <div className="flex h-[calc(100vh-4rem)] flex-col">
+        {/* 高度 = 动态视口 - 顶栏(3rem) - 内容区上下内边距(1rem) - 底部安全区，与 main 内容盒精确对齐 */}
+        <div className="flex h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] flex-col">
           {/* <div className="mb-2 flex items-center justify-between">
             <h1 className="page-title mb-0">RSS 资讯</h1>
             <button
@@ -1207,7 +1246,11 @@ export default function RSSReader() {
               />
             )}
             {mobileView === 'reader' && (
-              <ReadingPane article={selectedArticle} onBack={() => setMobileView('articles')} />
+              <ReadingPane
+                article={selectedArticle}
+                onBack={() => setMobileView('articles')}
+                onNext={articleList.length > 0 ? handleNextArticle : undefined}
+              />
             )}
           </div>
         </div>
@@ -1220,7 +1263,7 @@ export default function RSSReader() {
   /* -------------------- 桌面端 -------------------- */
   return (
     <>
-      <div className="flex h-[calc(100vh-5.5rem)] flex-col">
+      <div className="flex h-[calc(100dvh-5.5rem)] flex-col">
         {/* <div className="mb-3 flex items-center justify-between">
           <h1 className="page-title mb-0">RSS 资讯</h1>
           <button

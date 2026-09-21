@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Rss, TrendingUp, Globe } from 'lucide-react'
+import { LayoutDashboard, Rss, TrendingUp, Globe, StickyNote, CheckCircle2 } from 'lucide-react'
 
 const navItems = [
   { to: '/', label: '大盘总览', icon: LayoutDashboard },
   { to: '/rss', label: 'RSS 资讯', icon: Rss },
   { to: '/links', label: '网站导航', icon: Globe },
+  { to: '/notes', label: '速记便签', icon: StickyNote },
+  { to: '/habits', label: '习惯打卡', icon: CheckCircle2 },
 ] as const
 
 const VERSION = 'v0.1.0'

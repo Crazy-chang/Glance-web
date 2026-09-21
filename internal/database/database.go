@@ -26,8 +26,11 @@ func Init(dbPath string) (*gorm.DB, error) {
 	}
 
 	// ② 连接数据库（GORM + SQLite 驱动）
+	// TranslateError: 把各驱动的唯一约束冲突等错误统一翻译成 gorm.ErrDuplicatedKey，
+	// handler 才能用 errors.Is 准确识别"同名重复"并返回 409
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger:         logger.Default.LogMode(logger.Warn),
+		TranslateError: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -54,10 +57,13 @@ func Init(dbPath string) (*gorm.DB, error) {
 	// 如果表不存在，会自动创建；如果表存在，会根据模型结构更新表结构
 	if err := db.AutoMigrate(
 		&models.RSSFeed{},
-			&models.RSSArticle{},
-			&models.MarketRecord{},
-			&models.SystemSetting{},
-			&models.WebLink{},
+		&models.RSSArticle{},
+		&models.MarketRecord{},
+		&models.SystemSetting{},
+		&models.WebLink{},
+		&models.Note{},
+		&models.Habit{},
+		&models.HabitCheck{},
 	); err != nil {
 		return nil, fmt.Errorf("failed to auto migrate: %w", err)
 	}

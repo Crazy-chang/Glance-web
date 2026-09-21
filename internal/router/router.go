@@ -30,6 +30,8 @@ func SetupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	rss := handlers.NewRSSHandler(db)
 	system := handlers.NewSystemHandler(db)
 	webLink := handlers.NewWebLinkHandler(db)
+	note := handlers.NewNoteHandler(db)
+	habit := handlers.NewHabitHandler(db)
 
 	// 把 URL 路径和 handler 方法绑定
 	api := r.Group("/api")
@@ -61,10 +63,21 @@ func SetupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		api.DELETE("/web-links/:id", webLink.DeleteWebLink)
 		api.PUT("/web-links/update", webLink.UpdateWebLink)
 
+		// --- 便签 ---
+		api.GET("/notes", note.GetNotes)
+		api.POST("/notes", note.CreateNote)
+		api.PUT("/notes/:id", note.UpdateNote)
+		api.DELETE("/notes/:id", note.DeleteNote)
+
+		// --- 习惯打卡 ---
+		api.GET("/habits", habit.GetHabits)
+		api.POST("/habits", habit.CreateHabit)
+		api.DELETE("/habits/:id", habit.DeleteHabit)
+		api.PUT("/habits/:id/toggle", habit.ToggleCheck)
 
 		// --- System 系统设置 ---
 		api.GET("/system/status", system.GetStatus)
-		api.GET("/system/settings", system.GetSettings)  
+		api.GET("/system/settings", system.GetSettings)
 		api.PUT("/system/settings", system.UpdateSettings)
 	}
 

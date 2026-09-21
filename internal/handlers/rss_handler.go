@@ -110,8 +110,8 @@ func (h *RSSHandler) CreateFeed(c *gin.Context) {
 		return
 	}
 
-	if feed.Name == "" || feed.URL == "" {
-		failed(c, http.StatusBadRequest, "name and url are required")
+	if feed.URL == "" {
+		failed(c, http.StatusBadRequest, "url is required")
 		return
 	}
 	feed.URL = cleanURL(feed.URL)
