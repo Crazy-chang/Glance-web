@@ -6,10 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// BasicAuth returns a middleware that enforces HTTP Basic Authentication.
-// If both username and password are non-empty, every request must include
-// valid Basic Auth credentials. If either is empty, the middleware is
-// effectively a no-op (authentication is disabled).
+// BasicAuth 返回一个中间件，用于强制执行 HTTP 基本认证。
+// 如果用户名和密码都不为空，则每个请求都必须包含有效的基本认证头。
+// 如果用户名或密码为空，则中间件将作为无操作（认证已禁用）处理。
 func BasicAuth(username, password string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if username == "" || password == "" {

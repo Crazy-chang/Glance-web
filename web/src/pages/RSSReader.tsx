@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { message } from 'antd'
+import { message, Select, Modal } from 'antd'
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels'
 import {
   Rss, ExternalLink, Plus, RefreshCw, ChevronLeft,
@@ -34,9 +34,8 @@ function AddFeedModal({
 }: {
   open: boolean
   onClose: () => void
-  onAdd: (name: string, url: string) => Promise<void>
+  onAdd: (url: string) => Promise<void>
 }) {
-  const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [status, setStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -54,24 +53,20 @@ function AddFeedModal({
     setErrorMsg('')
 
     try {
-      const result = await rssApi.validateFeed(cleanUrl)
-      const finalName = name.trim() || result.title || cleanUrl.match(/\/\/([^/]+)/)?.[1] || '未命名订阅'
       setStatus('success')
-      await onAdd(finalName, cleanUrl)
+      await onAdd(cleanUrl)
       setTimeout(() => {
-        setName('')
         setUrl('')
         setStatus('idle')
         onClose()
       }, 500)
     } catch (err) {
       setStatus('error')
-      setErrorMsg(err instanceof Error ? err.message : '链接校验失败')
+      setErrorMsg(err instanceof Error ? err.message : '添加失败')
     }
-  }, [url, name, onAdd, onClose])
+  }, [url, onAdd, onClose])
 
   const handleClose = () => {
-    setName('')
     setUrl('')
     setStatus('idle')
     setErrorMsg('')
@@ -97,17 +92,6 @@ function AddFeedModal({
         </div>
 
         <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs text-fg-secondary">订阅名称（可选）</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="如：财联社电报"
-              disabled={status === 'checking'}
-              className="w-full rounded-lg border border-border bg-bg-tertiary px-3 py-2 text-sm text-fg-primary placeholder:text-fg-muted focus:border-stock-up focus:outline-none disabled:opacity-50"
-            />
-          </div>
           <div>
             <label className="mb-1 block text-xs text-fg-secondary">RSS 链接</label>
             <input
@@ -170,7 +154,6 @@ function AddFeedModal({
 
 /* -------------------- 菜单项（桌面右键菜单 / 移动端操作面板共用） -------------------- */
 function FeedMenuItems({
-  feedName,
   isActive,
   onTogglePin,
   onRename,
@@ -182,7 +165,6 @@ function FeedMenuItems({
   onClose,
   touch,
 }: {
-  feedName: string
   isActive: boolean
   onTogglePin: () => void
   onRename: () => void
@@ -247,7 +229,7 @@ function FeedMenuItems({
       <div className="my-1 border-t border-border" />
       <button
         onClick={() => {
-          if (confirm(`确定删除「${feedName}」吗？`)) onDelete()
+          onDelete()
           onClose()
         }}
         className={dangerClass}
@@ -261,9 +243,9 @@ function FeedMenuItems({
 
 /* -------------------- 订阅源操作菜单：桌面跟随坐标浮层，移动端底部操作面板 -------------------- */
 function ContextMenu({
-  x, y, feedName, isActive, mobile, onTogglePin, onRename, onCopyLink, onSetMax, onToggleActive, onDelete, onRefresh, onClose,
+  x, y, isActive, mobile, onTogglePin, onRename, onCopyLink, onSetMax, onToggleActive, onDelete, onRefresh, onClose,
 }: {
-  x: number; y: number; feedName: string
+  x: number; y: number
   isActive: boolean
   mobile: boolean
   onTogglePin: () => void
@@ -294,7 +276,6 @@ function ContextMenu({
 
   const items = (
     <FeedMenuItems
-      feedName={feedName}
       isActive={isActive}
       onTogglePin={onTogglePin}
       onRename={onRename}
@@ -320,9 +301,8 @@ function ContextMenu({
           style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* 顶部把手 + 订阅源名称：面板盖住了列表，标题让用户知道操作的是哪个源 */}
+          {/* 顶部把手：面板盖住了列表，标题让用户知道操作的是哪个源 */}
           <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-border" />
-          <div className="mb-1 truncate px-4 text-xs text-fg-muted">{feedName}</div>
           {items}
         </div>
       </div>
@@ -388,6 +368,7 @@ function FeedList({
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; feed: Feed } | null>(null)
   const [renamingFeed, setRenamingFeed] = useState<Feed | null>(null)
   const [maxFeed, setMaxFeed] = useState<Feed | null>(null)
+  const [deletingFeed, setDeletingFeed] = useState<Feed | null>(null)
 
   // 每分钟刷新一次"x分钟前"的相对时间文案
   const [now, setNow] = useState(() => new Date())
@@ -558,7 +539,6 @@ function FeedList({
         <ContextMenu
           x={ctxMenu.x}
           y={ctxMenu.y}
-          feedName={ctxMenu.feed.title}
           isActive={ctxMenu.feed.active !== false}
           mobile={isMobile}
           onTogglePin={() => onTogglePin(ctxMenu.feed.id)}
@@ -566,7 +546,7 @@ function FeedList({
           onCopyLink={() => handleCopyLink(ctxMenu.feed.url)}
           onSetMax={() => setMaxFeed(ctxMenu.feed)}
           onToggleActive={() => onToggleActiveFeed(ctxMenu.feed.id)}
-          onDelete={() => onDeleteFeed(ctxMenu.feed.id)}
+          onDelete={() => setDeletingFeed(ctxMenu.feed)}
           onRefresh={() => onRefreshFeed(ctxMenu.feed.id)}
           onClose={() => setCtxMenu(null)}
         />
@@ -595,6 +575,45 @@ function FeedList({
           onClose={() => setMaxFeed(null)}
         />
       )}
+
+      {/* 删除订阅确认弹窗 */}
+      <Modal
+        title={null}
+        open={!!deletingFeed}
+        onCancel={() => setDeletingFeed(null)}
+        footer={null}
+        width={360}
+        centered
+        closable={false}
+      >
+        <div className="py-2">
+          <div className="flex items-center gap-2 text-base font-semibold text-fg-primary">
+            <Trash2 className="h-4 w-4 text-stock-down" />
+            删除订阅
+          </div>
+          <p className="mt-3 text-sm text-fg-secondary">
+            确定删除「<span className="font-medium text-fg-primary">{deletingFeed?.title}</span>」吗？
+          </p>
+          <p className="mt-1 text-xs text-fg-muted">该订阅下的所有文章将一并删除</p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              onClick={() => setDeletingFeed(null)}
+              className="rounded-lg px-4 py-2 text-sm text-fg-secondary hover:bg-bg-tertiary hover:text-fg-primary"
+            >
+              取消
+            </button>
+            <button
+              onClick={() => {
+                if (deletingFeed) onDeleteFeed(deletingFeed.id)
+                setDeletingFeed(null)
+              }}
+              className="rounded-lg bg-stock-down px-4 py-2 text-sm font-medium text-white hover:bg-stock-down/90"
+            >
+              删除
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
@@ -733,38 +752,32 @@ function ArticleList({
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const sortedArticles = sortOrder === 'desc' ? articles : [...articles].reverse()
 
-  const tabs: { key: ReadFilter; label: string; count: number }[] = [
-    { key: 'unread', label: '未读', count: counts.unread },
-    { key: 'today', label: '今日', count: counts.today },
-    { key: 'read', label: '已读', count: counts.read },
-    { key: 'all', label: '全部', count: counts.all },
+  const readFilterOptions: { value: ReadFilter; label: string }[] = [
+    { value: 'unread', label: `未读 (${counts.unread})` },
+    { value: 'all', label: `全部 (${counts.all})` },
+    { value: 'today', label: `今日 (${counts.today})` },
+    { value: 'read', label: `已读 (${counts.read})` },
   ]
 
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border px-3 py-2 sm:px-4 sm:py-2.5">
-        <div className="mt-2 flex items-center gap-1">
+        <div className="mt-2 flex items-center gap-2">
           {showBack && onBack && (
             <button onClick={onBack} className="flex items-center gap-1 mr-1 text-xs text-fg-secondary hover:text-fg-primary">
               <ChevronLeft className="h-4 w-4" />
               返回
             </button>
           )}
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => onReadFilterChange(tab.key)}
-              className={[
-                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                readFilter === tab.key
-                  ? 'bg-stock-up/15 text-stock-up'
-                  : 'text-fg-muted hover:bg-bg-hover hover:text-fg-secondary',
-              ].join(' ')}
-            >
-              {tab.label}
-              <span className="ml-1 text-[10px] opacity-70">{tab.count}</span>
-            </button>
-          ))}
+          {/* 未读/全部/今日/已读 → 下拉选择，默认未读 */}
+          <Select
+            value={readFilter}
+            options={readFilterOptions}
+            onChange={(v) => onReadFilterChange(v as ReadFilter)}
+            size="small"
+            style={{ width: 110 , border: 'none', outline: 'none', backgroundColor: 'transparent'  }}
+            popupMatchSelectWidth={false}
+          />
           <button
             onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
             className="ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-xs text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg-secondary"
@@ -1122,8 +1135,8 @@ export default function RSSReader() {
     },
   })
 
-  const handleAddFeed = async (name: string, url: string) => {
-    await createFeedMutation.mutateAsync({ name, url })
+  const handleAddFeed = async (url: string) => {
+    await createFeedMutation.mutateAsync({ name: '', url })
   }
 
   const handleSelectArticle = (article: Article) => {

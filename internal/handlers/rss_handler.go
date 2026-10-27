@@ -116,6 +116,17 @@ func (h *RSSHandler) CreateFeed(c *gin.Context) {
 	}
 	feed.URL = cleanURL(feed.URL)
 
+	// 名称为空时，自动从 RSS 源获取标题
+	if feed.Name == "" {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+		if validated, err := h.rssSvc.ValidateFeedURL(ctx, feed.URL); err == nil && validated.Title != "" {
+			feed.Name = validated.Title
+		} else {
+			feed.Name = "未命名订阅"
+		}
+		cancel()
+	}
+
 	if feed.Category == "" {
 		feed.Category = "news"
 	}
