@@ -38,6 +38,11 @@ export const marketRecord = {
   remove(id: number): Promise<void> {
     return client.delete('/market/records/' + id).then((r) => r.data)
   },
+
+  /** 批量导入行情记录（后端按 date upsert，已存在则覆盖） */
+  batchCreate(payloads: MarketRecordPayload[]): Promise<{ count: number }> {
+    return client.post('/market/records/batch', payloads).then((r) => r.data)
+  },
 }
 
 /* -------------------- RSS -------------------- */

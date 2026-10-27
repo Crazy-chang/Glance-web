@@ -39,6 +39,7 @@ func SetupRouter(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		// --- 行情记录 ---
 		api.GET("/market/records", record.GetRecords)
 		api.POST("/market/records", record.CreateRecord)
+		api.POST("/market/records/batch", record.BatchSaveRecords)
 		api.PUT("/market/records/:id", record.UpdateRecord)
 		api.DELETE("/market/records/:id", record.DeleteRecord)
 

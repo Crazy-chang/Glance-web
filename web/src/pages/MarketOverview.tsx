@@ -16,6 +16,7 @@ import {
   Empty,
   message,
   Popconfirm,
+  Upload,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -23,6 +24,8 @@ import {
   DeleteOutlined,
   PlusOutlined,
   FireOutlined,
+  DownloadOutlined,
+  UploadOutlined,
 } from '@ant-design/icons'
 import {
   LineChart,
@@ -36,6 +39,8 @@ import {
 import dayjs from 'dayjs'
 import { marketRecord } from '@/api/endpoints'
 import type { MarketRecord, MarketRecordPayload } from '@/types'
+import { exportRecordsToXlsx, parseXlsxToRecords } from '@/utils/excel'
+import ImportPreviewModal from './MarketOverview/ImportPreviewModal'
 
 /* ============================================================
  *  常量 / 工具函数
@@ -524,6 +529,10 @@ export default function MarketOverview() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formInitial, setFormInitial] = useState<MarketRecordPayload>(emptyForm())
 
+  /* -------- 导入弹窗状态 -------- */
+  const [importOpen, setImportOpen] = useState(false)
+  const [importData, setImportData] = useState<MarketRecordPayload[]>([])
+
   /* -------- 数据查询（全量拉取，前端筛选+分页） -------- */
   const { data: records, isLoading: recordsLoading } = useQuery({
     queryKey: ['marketRecords'],
@@ -554,6 +563,12 @@ export default function MarketOverview() {
     if (!records || records.length === 0) return null
     return [...records].sort((a, b) => (a.date < b.date ? 1 : -1))[0]
   }, [records])
+
+  // 已有记录日期集合（导入弹窗用于冲突标记）
+  const existingDates = useMemo(
+    () => new Set((records ?? []).map((r) => r.date)),
+    [records],
+  )
 
   /* -------- 变更操作 -------- */
   const createMutation = useMutation({
@@ -588,6 +603,19 @@ export default function MarketOverview() {
     },
     onError: (err) => {
       messageApi.error(err instanceof Error ? err.message : '删除失败')
+    },
+  })
+
+  const importMutation = useMutation({
+    mutationFn: (payloads: MarketRecordPayload[]) => marketRecord.batchCreate(payloads),
+    onSuccess: (res) => {
+      messageApi.success(`成功导入 ${res.count} 条记录`)
+      queryClient.invalidateQueries({ queryKey: ['marketRecords'] })
+      setImportOpen(false)
+      setImportData([])
+    },
+    onError: (err) => {
+      messageApi.error(err instanceof Error ? err.message : '导入失败')
     },
   })
 
@@ -638,6 +666,38 @@ export default function MarketOverview() {
   function handleDelete(record: MarketRecord) {
     if (!record.id) return
     deleteMutation.mutate(record.id)
+  }
+
+  /* -------- 导出：导出当前筛选结果 -------- */
+  function handleExport() {
+    if (filteredRecords.length === 0) {
+      messageApi.warning('当前没有可导出的记录')
+      return
+    }
+    exportRecordsToXlsx(filteredRecords)
+  }
+
+  /* -------- 导入：解析文件 -> 打开预览弹窗 -------- */
+  async function handleImportFile(file: File) {
+    try {
+      const { records: parsed, skipped } = await parseXlsxToRecords(file)
+      if (parsed.length === 0) {
+        messageApi.warning('文件中没有可导入的数据')
+        return
+      }
+      if (skipped > 0) {
+        messageApi.warning(`已跳过 ${skipped} 行日期无效的数据`)
+      }
+      setImportData(parsed)
+      setImportOpen(true)
+    } catch (err) {
+      messageApi.error(err instanceof Error ? err.message : '文件解析失败')
+    }
+  }
+
+  function handleImportConfirm(selected: MarketRecordPayload[]) {
+    if (selected.length === 0) return
+    importMutation.mutate(selected)
   }
 
   const submitting = createMutation.isPending || updateMutation.isPending
@@ -824,6 +884,19 @@ export default function MarketOverview() {
           >
             共 {filteredRecords.length} 条
           </span>
+          <Button icon={<DownloadOutlined />} onClick={handleExport}>
+            导出
+          </Button>
+          <Upload
+            accept=".xlsx,.xls"
+            showUploadList={false}
+            beforeUpload={(file) => {
+              void handleImportFile(file)
+              return false
+            }}
+          >
+            <Button icon={<UploadOutlined />}>导入</Button>
+          </Upload>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             新增记录
           </Button>
@@ -858,6 +931,16 @@ export default function MarketOverview() {
         submitting={submitting}
         onClose={closeModal}
         onSubmit={handleSubmit}
+      />
+
+      {/* ============ 4. 导入预览弹窗 ============ */}
+      <ImportPreviewModal
+        open={importOpen}
+        records={importData}
+        existingDates={existingDates}
+        submitting={importMutation.isPending}
+        onClose={() => setImportOpen(false)}
+        onConfirm={handleImportConfirm}
       />
     </div>
   )
